@@ -161,7 +161,7 @@ func (c *Client) ProposerAssignments(epoch uint64) (*types.EpochProposerAssignme
 }
 
 func (c *Client) ExecutionBlockNumber(slot uint64) (uint64, error) {
-	url := fmt.Sprintf("%s/eth/v1/beacon/blocks/%d", c.endpoint, slot)
+	url := fmt.Sprintf("%s/eth/v2/beacon/blocks/%d", c.endpoint, slot)
 
 	resp, err := c.httpClient.Get(url)
 
