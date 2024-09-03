@@ -4,8 +4,8 @@ import (
 	"flag"
 	"time"
 
-	ethrewards "github.com/gobitfly/eth-rewards"
-	"github.com/gobitfly/eth-rewards/beacon"
+	ethrewards "github.com/DillLabs/eth-rewards"
+	"github.com/DillLabs/eth-rewards/beacon"
 	"github.com/sirupsen/logrus"
 )
 
@@ -27,23 +27,23 @@ func main() {
 			logrus.Fatal(err)
 		}
 
-		balance, err := client.Balance((i+1)*32, 195851)
+		balance, err := client.Balance((i+1)*32, 1)
 		if err != nil {
 			logrus.Fatal(err)
 		}
 
-		balanceNext, err := client.Balance((i+2)*32, 195851)
+		balanceNext, err := client.Balance((i+2)*32, 1)
 		if err != nil {
 			logrus.Fatal(err)
 		}
 
-		logrus.Infof("epoch %d: %s", i, rewards[uint64(195851)].String())
-		logrus.Infof("epoch %d: %d income", i, rewards[uint64(195851)].TotalClRewards())
+		logrus.Infof("epoch %d: %s", i, rewards[uint64(1)].String())
+		logrus.Infof("epoch %d: %d income", i, rewards[uint64(1)].TotalClRewards())
 		logrus.Infof("epoch %d: %d balance", i, balance)
 		logrus.Infof("epoch %d: %d balanceNext", i, balanceNext)
 		logrus.Infof("epoch %d: %d delta", i, int64(balanceNext)-int64(balance))
 
-		rewardsApi += rewards[uint64(195851)].TotalClRewards()
+		rewardsApi += rewards[uint64(1)].TotalClRewards()
 		rewardsBalance += int64(balanceNext) - int64(balance)
 
 		logrus.Infof("epoch %d: %d api", i, rewardsApi)
