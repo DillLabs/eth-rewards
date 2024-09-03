@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gobitfly/eth-rewards/types"
+	"github.com/DillLabs/eth-rewards/types"
 )
 
 type Client struct {
