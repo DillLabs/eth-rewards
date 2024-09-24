@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DillLabs/dillscan-rewards/src/common/log"
 	"github.com/DillLabs/eth-rewards/types"
 )
 
@@ -82,8 +83,11 @@ func (c *Client) SyncCommitteeRewards(slot uint64) (*types.SyncCommitteeRewardsA
 	url := fmt.Sprintf("%s/eth/v1/beacon/rewards/sync_committee/%d", c.endpoint, slot)
 	data := []byte("[]") //request data for all validators
 
+	startTime := time.Now()
 	resp, err := c.httpClient.Post(url, "application/json", bytes.NewReader(data))
-
+	endTime := time.Now()
+	duration := endTime.Sub(startTime).Seconds()
+	log.Debug("in SyncCommitteeRewards duration", "slot", slot, "duration", duration)
 	if err != nil {
 		return nil, err
 	}
@@ -111,9 +115,11 @@ func (c *Client) SyncCommitteeRewards(slot uint64) (*types.SyncCommitteeRewardsA
 
 func (c *Client) BlockRewards(slot uint64) (*types.BlockRewardsApiResponse, error) {
 	url := fmt.Sprintf("%s/eth/v1/beacon/rewards/blocks/%d", c.endpoint, slot)
-
+	startTime := time.Now()
 	resp, err := c.httpClient.Get(url)
-
+	endTime := time.Now()
+	duration := endTime.Sub(startTime).Seconds()
+	log.Info("in BlockRewards duration", "slot", slot, "duration", duration)
 	if err != nil {
 		return nil, err
 	}

@@ -6,11 +6,11 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/DillLabs/dillscan-rewards/src/common/log"
 	"github.com/DillLabs/eth-rewards/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/sirupsen/logrus"
 )
 
 func GetELRewardForBlock(executionBlockNumber uint64, endpoint string) (*big.Int, error) {
@@ -49,7 +49,7 @@ func GetELRewardForBlock(executionBlockNumber uint64, endpoint string) (*big.Int
 			cancel()
 			break
 		} else {
-			logrus.Infof("error (%d) doing batchRequestReceipts for execution block %v: %v", j, executionBlockNumber, err)
+			log.Info("error (%d) doing batchRequestReceipts for execution block ", j, executionBlockNumber, err)
 			time.Sleep(time.Duration(j) * time.Second)
 		}
 		cancel()
