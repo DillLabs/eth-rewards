@@ -3,7 +3,6 @@ package ethrewards
 import (
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/DillLabs/dillscan-rewards/src/common/log"
 	"github.com/DillLabs/eth-rewards/beacon"
@@ -15,12 +14,10 @@ import (
 )
 
 func GetRewardsForEpoch(epoch uint64, client *beacon.Client, elEndpoint string) (map[uint64]*types.ValidatorEpochIncome, error) {
-	startTime0 := time.Now()
+
 	proposerAssignments, err := client.ProposerAssignments(epoch) //web
-	endTime0 := time.Now()
-	duration0 := endTime0.Sub(startTime0).Seconds()
-	log.Debug("WEB ExecutionProposerAssignments duration", "duration", duration0)
 	if err != nil {
+		log.Error("failed to fetch proposer assignments", "err", err)
 		return nil, err
 	}
 
@@ -49,11 +46,7 @@ func GetRewardsForEpoch(epoch uint64, client *beacon.Client, elEndpoint string) 
 			if !found {
 				return fmt.Errorf("assigned proposer for slot %v not found", i)
 			}
-			startTime1 := time.Now()
 			execBlockNumber, err := client.ExecutionBlockNumber(i) // web
-			endTime1 := time.Now()
-			duration1 := endTime1.Sub(startTime1).Seconds()
-			log.Debug("WEB ExecutionBlockNumber duration", "slot", i, "duration", duration1)
 
 			rewardsMux.Lock()
 			if rewards[proposer] == nil {
@@ -72,14 +65,10 @@ func GetRewardsForEpoch(epoch uint64, client *beacon.Client, elEndpoint string) 
 				}
 			} else {
 
-				startTime2 := time.Now()
 				txFeeIncome, err := elrewards.GetELRewardForBlock(execBlockNumber, elEndpoint) //web
-				endTime2 := time.Now()
-				duration2 := endTime2.Sub(startTime2).Seconds()
-				log.Debug("WEB ExecutionGetELRewardForBlock duration", "slot", i, "duration", duration2)
 
 				if err != nil {
-					log.Info("error retrieving EL reward for block ", "execBlockNumber", execBlockNumber, "err", err)
+					log.Error("error retrieving EL reward for block ", "execBlockNumber", execBlockNumber, "err", err)
 					return err
 				}
 
@@ -87,11 +76,7 @@ func GetRewardsForEpoch(epoch uint64, client *beacon.Client, elEndpoint string) 
 				rewards[proposer].TxFeeRewardWei = txFeeIncome.Bytes()
 				rewardsMux.Unlock()
 			}
-			// startTime3 := time.Now()
 			syncRewards, err := client.SyncCommitteeRewards(i) //web
-			// endTime3 := time.Now()
-			// duration3 := endTime3.Sub(startTime3).Seconds()
-			// log.Info("WEB ExecutionSyncCommitteeRewards duration", "slot", i, "duration", duration3)
 			if err != nil {
 				if err != types.ErrSlotPreSyncCommittees {
 					return err
@@ -119,11 +104,7 @@ func GetRewardsForEpoch(epoch uint64, client *beacon.Client, elEndpoint string) 
 			}
 			rewardsMux.Unlock()
 
-			// startTime4 := time.Now()
 			blockRewards, err := client.BlockRewards(i) //web
-			// endTime4 := time.Now()
-			// duration4 := endTime4.Sub(startTime4).Seconds()
-			// log.Info("WEB BlockRewards duration", "slot", i, "duration", duration4)
 			if err != nil {
 				// rewardsMux.Unlock()
 				return err
@@ -142,11 +123,7 @@ func GetRewardsForEpoch(epoch uint64, client *beacon.Client, elEndpoint string) 
 	}
 
 	g.Go(func() error {
-		startTime5 := time.Now()
 		ar, err := client.AttestationRewards(epoch) //web
-		endTime5 := time.Now()
-		duration5 := endTime5.Sub(startTime5).Seconds()
-		log.Info("WEB AttestationRewards duration", "duration", duration5)
 		if err != nil {
 			return err
 		}
