@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/DillLabs/dillscan-rewards/src/common/log"
 	"github.com/DillLabs/eth-rewards/beacon"
 	"github.com/DillLabs/eth-rewards/elrewards"
 	"github.com/DillLabs/eth-rewards/types"
@@ -13,8 +14,10 @@ import (
 )
 
 func GetRewardsForEpoch(epoch uint64, client *beacon.Client, elEndpoint string) (map[uint64]*types.ValidatorEpochIncome, error) {
-	proposerAssignments, err := client.ProposerAssignments(epoch)
+
+	proposerAssignments, err := client.ProposerAssignments(epoch) //web
 	if err != nil {
+		log.Error("failed to fetch proposer assignments", "err", err)
 		return nil, err
 	}
 
@@ -32,19 +35,19 @@ func GetRewardsForEpoch(epoch uint64, client *beacon.Client, elEndpoint string) 
 	}
 
 	rewardsMux := &sync.Mutex{}
-
 	rewards := make(map[uint64]*types.ValidatorEpochIncome)
 
 	for i := startSlot; i <= endSlot; i++ {
 		i := i
 
 		g.Go(func() error {
+
 			proposer, found := slotsToProposerIndex[i]
 			if !found {
 				return fmt.Errorf("assigned proposer for slot %v not found", i)
 			}
+			execBlockNumber, err := client.ExecutionBlockNumber(i) // web
 
-			execBlockNumber, err := client.ExecutionBlockNumber(i)
 			rewardsMux.Lock()
 			if rewards[proposer] == nil {
 				rewards[proposer] = &types.ValidatorEpochIncome{}
@@ -61,8 +64,11 @@ func GetRewardsForEpoch(epoch uint64, client *beacon.Client, elEndpoint string) 
 					return err
 				}
 			} else {
-				txFeeIncome, err := elrewards.GetELRewardForBlock(execBlockNumber, elEndpoint)
+
+				txFeeIncome, err := elrewards.GetELRewardForBlock(execBlockNumber, elEndpoint) //web
+
 				if err != nil {
+					log.Error("error retrieving EL reward for block ", "execBlockNumber", execBlockNumber, "err", err)
 					return err
 				}
 
@@ -70,13 +76,17 @@ func GetRewardsForEpoch(epoch uint64, client *beacon.Client, elEndpoint string) 
 				rewards[proposer].TxFeeRewardWei = txFeeIncome.Bytes()
 				rewardsMux.Unlock()
 			}
-
-			syncRewards, err := client.SyncCommitteeRewards(i)
+			syncRewards, err := client.SyncCommitteeRewards(i) //web
 			if err != nil {
 				if err != types.ErrSlotPreSyncCommittees {
 					return err
 				}
 			}
+			// if syncRewards != nil {
+			// 	log.Info("SyncCommitteeRewards result", "slot", i, "result", syncRewards)
+			// } else {
+			// 	log.Info("SyncCommitteeRewards returned nil", "slot", i)
+			// }
 
 			rewardsMux.Lock()
 			if syncRewards != nil {
@@ -94,13 +104,12 @@ func GetRewardsForEpoch(epoch uint64, client *beacon.Client, elEndpoint string) 
 			}
 			rewardsMux.Unlock()
 
-			rewardsMux.Lock()
-			blockRewards, err := client.BlockRewards(i)
+			blockRewards, err := client.BlockRewards(i) //web
 			if err != nil {
-				rewardsMux.Unlock()
+				// rewardsMux.Unlock()
 				return err
 			}
-
+			rewardsMux.Lock()
 			if rewards[blockRewards.Data.ProposerIndex] == nil {
 				rewards[blockRewards.Data.ProposerIndex] = &types.ValidatorEpochIncome{}
 			}
@@ -108,12 +117,13 @@ func GetRewardsForEpoch(epoch uint64, client *beacon.Client, elEndpoint string) 
 			rewards[blockRewards.Data.ProposerIndex].ProposerSlashingInclusionReward += blockRewards.Data.AttesterSlashings + blockRewards.Data.ProposerSlashings
 			rewards[blockRewards.Data.ProposerIndex].ProposerSyncInclusionReward += blockRewards.Data.SyncAggregate
 			rewardsMux.Unlock()
+
 			return nil
 		})
 	}
 
 	g.Go(func() error {
-		ar, err := client.AttestationRewards(epoch)
+		ar, err := client.AttestationRewards(epoch) //web
 		if err != nil {
 			return err
 		}
