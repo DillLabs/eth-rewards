@@ -7,6 +7,7 @@ import (
 	"github.com/DillLabs/eth-rewards/beacon"
 	"github.com/DillLabs/eth-rewards/elrewards"
 	"github.com/DillLabs/eth-rewards/types"
+
 	"golang.org/x/sync/errgroup"
 
 	"github.com/sirupsen/logrus"
@@ -94,13 +95,13 @@ func GetRewardsForEpoch(epoch uint64, client *beacon.Client, elEndpoint string) 
 			}
 			rewardsMux.Unlock()
 
-			rewardsMux.Lock()
 			blockRewards, err := client.BlockRewards(i)
 			if err != nil {
 				rewardsMux.Unlock()
 				return err
 			}
 
+			rewardsMux.Lock()
 			if rewards[blockRewards.Data.ProposerIndex] == nil {
 				rewards[blockRewards.Data.ProposerIndex] = &types.ValidatorEpochIncome{}
 			}

@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DillLabs/dillscan-rewards/src/common/log"
+	"github.com/DillLabs/dillscan-rewards/src/common/util/http/client"
 	"github.com/DillLabs/eth-rewards/types"
 )
 
@@ -31,7 +33,11 @@ func (c *Client) Balance(slot uint64, validator uint64) (uint64, error) {
 
 	url := fmt.Sprintf("%s/eth/v1/beacon/states/%d/validator_balances?id=%d", c.endpoint, slot, validator)
 
-	resp, err := c.httpClient.Get(url)
+	// resp, err := c.httpClient.Get(url)
+
+	resp, err := client.RetryWithDefaults(c.httpClient, func() (*http.Response, error) {
+		return c.httpClient.Get(url)
+	}, "Balance")
 
 	if err != nil {
 		return 0, err
@@ -57,8 +63,9 @@ func (c *Client) AttestationRewards(epoch uint64) (*types.AttestationRewardsApiR
 	url := fmt.Sprintf("%s/eth/v1/beacon/rewards/attestations/%d", c.endpoint, epoch)
 	data := []byte("[]") //request data for all validators
 
-	resp, err := c.httpClient.Post(url, "application/json", bytes.NewReader(data))
-
+	resp, err := client.RetryWithDefaults(c.httpClient, func() (*http.Response, error) {
+		return c.httpClient.Post(url, "application/json", bytes.NewReader(data))
+	}, "AttestationRewards")
 	if err != nil {
 		return nil, err
 	}
@@ -82,10 +89,21 @@ func (c *Client) SyncCommitteeRewards(slot uint64) (*types.SyncCommitteeRewardsA
 	url := fmt.Sprintf("%s/eth/v1/beacon/rewards/sync_committee/%d", c.endpoint, slot)
 	data := []byte("[]") //request data for all validators
 
-	resp, err := c.httpClient.Post(url, "application/json", bytes.NewReader(data))
+	startTime := time.Now()
 
+	resp, err := client.RetryWithDefaults(c.httpClient, func() (*http.Response, error) {
+		return c.httpClient.Post(url, "application/json", bytes.NewReader(data))
+	}, "SyncCommitteeRewards")
+	endTime := time.Now()
+	duration := endTime.Sub(startTime).Seconds()
+	log.Debug("in SyncCommitteeRewards duration", "slot", slot, "duration", duration)
 	if err != nil {
+		log.Error("SyncCommitteeRewards", "err", err)
 		return nil, err
+	}
+	// tj added
+	if resp == nil {
+		return nil, fmt.Errorf("received nil response %s", strconv.FormatUint(slot, 10))
 	}
 	defer resp.Body.Close()
 
@@ -111,12 +129,24 @@ func (c *Client) SyncCommitteeRewards(slot uint64) (*types.SyncCommitteeRewardsA
 
 func (c *Client) BlockRewards(slot uint64) (*types.BlockRewardsApiResponse, error) {
 	url := fmt.Sprintf("%s/eth/v1/beacon/rewards/blocks/%d", c.endpoint, slot)
+	startTime := time.Now()
 
-	resp, err := c.httpClient.Get(url)
+	resp, err := client.RetryWithDefaults(c.httpClient, func() (*http.Response, error) {
+		return c.httpClient.Get(url)
+	}, "BlockRewards")
 
+	endTime := time.Now()
+	duration := endTime.Sub(startTime).Seconds()
+	log.Debug("in BlockRewards duration", "slot", slot, "duration", duration)
 	if err != nil {
+		log.Error("BlockRewards", "err", err)
 		return nil, err
 	}
+
+	if resp == nil {
+		return nil, fmt.Errorf("received nil response %s", strconv.FormatUint(slot, 10))
+	}
+
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
@@ -139,11 +169,14 @@ func (c *Client) BlockRewards(slot uint64) (*types.BlockRewardsApiResponse, erro
 func (c *Client) ProposerAssignments(epoch uint64) (*types.EpochProposerAssignmentsApiResponse, error) {
 	url := fmt.Sprintf("%s/eth/v1/validator/duties/proposer/%d", c.endpoint, epoch)
 
-	resp, err := c.httpClient.Get(url)
+	resp, err := client.RetryWithDefaults(c.httpClient, func() (*http.Response, error) {
+		return c.httpClient.Get(url)
+	}, "ProposerAssignments")
 
 	if err != nil {
 		return nil, err
 	}
+
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
@@ -163,7 +196,9 @@ func (c *Client) ProposerAssignments(epoch uint64) (*types.EpochProposerAssignme
 func (c *Client) ExecutionBlockNumber(slot uint64) (uint64, error) {
 	url := fmt.Sprintf("%s/eth/v2/beacon/blocks/%d", c.endpoint, slot)
 
-	resp, err := c.httpClient.Get(url)
+	resp, err := client.RetryWithDefaults(c.httpClient, func() (*http.Response, error) {
+		return c.httpClient.Get(url)
+	}, "ExecutionBlockNumber")
 
 	if err != nil {
 		return 0, err
