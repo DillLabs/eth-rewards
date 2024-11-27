@@ -97,7 +97,7 @@ func GetRewardsForEpoch(epoch uint64, client *beacon.Client, elEndpoint string) 
 
 			blockRewards, err := client.BlockRewards(i)
 			if err != nil {
-				rewardsMux.Unlock()
+				// rewardsMux.Unlock()
 				return err
 			}
 
