@@ -8,10 +8,27 @@ import (
 
 	"github.com/DillLabs/eth-rewards/types"
 	"github.com/ethereum/go-ethereum/common"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/sirupsen/logrus"
 )
+
+func GetExecutionBlock(executionBlockNumber uint64, endpoint string) (*ethTypes.Block, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+
+	nativeClient, err := ethclient.Dial(endpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	block, err := nativeClient.BlockByNumber(ctx, big.NewInt(int64(executionBlockNumber)))
+	if err != nil {
+		return nil, err
+	}
+	return block, nil
+}
 
 func GetELRewardForBlock(executionBlockNumber uint64, endpoint string) (*big.Int, error) {
 
