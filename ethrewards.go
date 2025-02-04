@@ -37,6 +37,7 @@ func GetRewardsForEpoch(epoch uint64, client *beacon.Client, elEndpoint string) 
 	}
 
 	rewardsMux := &sync.Mutex{}
+	amountMux := &sync.Mutex{}
 
 	rewards := make(map[uint64]*types.ValidatorEpochIncome)
 	mapValidatorIndexWithdrawalAmount := make(map[uint64]uint64)
@@ -75,11 +76,13 @@ func GetRewardsForEpoch(epoch uint64, client *beacon.Client, elEndpoint string) 
 					for _, wd := range ethBlock.Withdrawals() {
 						if wd.Amount > 0 {
 							//logrus.Debugf("wd.Validator %d, wd.Amount %d", wd.Validator, wd.Amount)
+							amountMux.Lock()
 							if mapValidatorIndexWithdrawalAmount[wd.Validator] == 0 {
 								mapValidatorIndexWithdrawalAmount[wd.Validator] = wd.Amount
 							} else {
 								mapValidatorIndexWithdrawalAmount[wd.Validator] += wd.Amount
 							}
+							amountMux.Unlock()
 						}
 					}
 				}
