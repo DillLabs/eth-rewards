@@ -1,12 +1,16 @@
 package ethrewards
 
 import (
+	"context"
 	"fmt"
+	"math/big"
 	"sync"
+	"time"
 
 	"github.com/DillLabs/eth-rewards/beacon"
-	"github.com/DillLabs/eth-rewards/elrewards"
 	"github.com/DillLabs/eth-rewards/types"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient"
 
 	"golang.org/x/sync/errgroup"
 
@@ -33,8 +37,10 @@ func GetRewardsForEpoch(epoch uint64, client *beacon.Client, elEndpoint string) 
 	}
 
 	rewardsMux := &sync.Mutex{}
+	amountMux := &sync.Mutex{}
 
 	rewards := make(map[uint64]*types.ValidatorEpochIncome)
+	mapValidatorIndexWithdrawalAmount := make(map[uint64]uint64)
 
 	for i := startSlot; i <= endSlot; i++ {
 		i := i
@@ -62,14 +68,33 @@ func GetRewardsForEpoch(epoch uint64, client *beacon.Client, elEndpoint string) 
 					return err
 				}
 			} else {
-				txFeeIncome, err := elrewards.GetELRewardForBlock(execBlockNumber, elEndpoint)
+				ethBlock, err := GetExecutionBlock(execBlockNumber, elEndpoint)
 				if err != nil {
 					return err
 				}
+				if len(ethBlock.Withdrawals()) > 0 {
+					for _, wd := range ethBlock.Withdrawals() {
+						if wd.Amount > 0 {
+							//logrus.Debugf("wd.Validator %d, wd.Amount %d", wd.Validator, wd.Amount)
+							amountMux.Lock()
+							if mapValidatorIndexWithdrawalAmount[wd.Validator] == 0 {
+								mapValidatorIndexWithdrawalAmount[wd.Validator] = wd.Amount
+							} else {
+								mapValidatorIndexWithdrawalAmount[wd.Validator] += wd.Amount
+							}
+							amountMux.Unlock()
+						}
+					}
+				}
 
-				rewardsMux.Lock()
-				rewards[proposer].TxFeeRewardWei = txFeeIncome.Bytes()
-				rewardsMux.Unlock()
+				//txFeeIncome, err := elrewards.GetELRewardForBlock(execBlockNumber, elEndpoint)
+				//if err != nil {
+				//	return err
+				//}
+
+				//rewardsMux.Lock()
+				//rewards[proposer].TxFeeRewardWei = txFeeIncome.Bytes()
+				//rewardsMux.Unlock()
 			}
 
 			syncRewards, err := client.SyncCommitteeRewards(i)
@@ -158,5 +183,33 @@ func GetRewardsForEpoch(epoch uint64, client *beacon.Client, elEndpoint string) 
 		return nil, err
 	}
 
+	for index, amount := range mapValidatorIndexWithdrawalAmount {
+		if amount > 0 {
+			//logrus.Debugf("index %d, amount %d", index, amount)
+			rewardsMux.Lock()
+			if rewards[index] == nil {
+				rewards[index] = &types.ValidatorEpochIncome{}
+			}
+			rewards[index].WithdrawalAmount = amount
+			rewardsMux.Unlock()
+		}
+	}
+
 	return rewards, nil
+}
+
+func GetExecutionBlock(executionBlockNumber uint64, endpoint string) (*ethTypes.Block, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+
+	nativeClient, err := ethclient.Dial(endpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	block, err := nativeClient.BlockByNumber(ctx, big.NewInt(int64(executionBlockNumber)))
+	if err != nil {
+		return nil, err
+	}
+	return block, nil
 }
