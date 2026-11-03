@@ -14,6 +14,7 @@ func main() {
 	elNode := flag.String("el-node", "http://localhost:8545", "EL Node API Endpoint")
 	// network := flag.String("network", "", "Config to use (can be mainnet, prater or sepolia")
 	epoch := flag.Uint64("epoch", 1, "Epoch to calculate rewards for")
+	concurrency := flag.Int("concurrency", 32, "Max concurrent slot reward fetches")
 	flag.Parse()
 
 	client := beacon.NewClient(*clNode, time.Second*30)
@@ -21,7 +22,7 @@ func main() {
 	rewardsApi := int64(0)
 	rewardsBalance := int64(0)
 	for i := *epoch; i < i+225; i++ {
-		rewards, err := ethrewards.GetRewardsForEpoch(i, client, *elNode)
+		rewards, err := ethrewards.GetRewardsForEpoch(i, client, *elNode, *concurrency)
 
 		if err != nil {
 			logrus.Fatal(err)
