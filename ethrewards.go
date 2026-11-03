@@ -17,7 +17,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func GetRewardsForEpoch(epoch uint64, client *beacon.Client, elEndpoint string) (map[uint64]*types.ValidatorEpochIncome, error) {
+func GetRewardsForEpoch(epoch uint64, client *beacon.Client, elEndpoint string, concurrency int) (map[uint64]*types.ValidatorEpochIncome, error) {
 	proposerAssignments, err := client.ProposerAssignments(epoch)
 	if err != nil {
 		return nil, err
@@ -28,8 +28,12 @@ func GetRewardsForEpoch(epoch uint64, client *beacon.Client, elEndpoint string) 
 	startSlot := epoch * slotsPerEpoch
 	endSlot := startSlot + slotsPerEpoch - 1
 
+	if concurrency <= 0 {
+		concurrency = 32
+	}
+
 	g := new(errgroup.Group)
-	g.SetLimit(32)
+	g.SetLimit(concurrency)
 
 	slotsToProposerIndex := make(map[uint64]uint64)
 	for _, pa := range proposerAssignments.Data {
